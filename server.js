@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 
 const mysql = require('mysql');
+const { query } = require('express');
 const db = mysql.createPool({
     host:'localhost',
     user:'graduation',
@@ -15,38 +16,34 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
-app.get('/guestbook', (req,res) => {
-    const idx = req.body.id;
-
-    const sqlSelect = "SELECT * FROM board ORDER BY id DESC";
-    if(idx === undefined){
-        db.query(sqlSelect, (err, result) => {
-            res.send(result);
-        });
-    } else {
-        db.query(sqlSelect, (err, result) => {
-            const sqlRead = "SELECT * FROM board WHERE id=?";
-            if(error){
-                throw error;
-            }
-            db.query(sqlRead, [idx], (err2, results) => {
-                if(err2){
-                    throw err2;
-                }
-                console.log(results[0].title);
-                res.send(results);
-            })
-        })
-    }
+/* Guestbook (ASP에서 List.aspx) */
+app.post('/guestbook', (req,res) => {
+    const sqlSelect = "SELECT id, name, pw, title, content, date_format(date, '%Y-%m-%d %H:%m:%s') date, hit FROM board ORDER BY id DESC";
+    db.query(sqlSelect, (err, result) => {
+        if(err) console.log(err);
+        res.send(result);
+    });
 });
 
-// app.get('/guestbook', (req,res) => {
-//     const sqlSelect = "SELECT * FROM board ORDER BY id DESC";
-//     db.query(sqlSelect, (err, result) => {
-//         res.send(result);
-//     });
-// });
+/* Read (ASP에서 Show.aspx) */
+app.get('/read/:id', (req,res) => {
+    const idx = req.params.id;
+    console.log(idx); 
+    const sqlRead = "SELECT id, name, pw, title, content, date_format(date, '%Y-%m-%d %H:%m:%s') date, hit FROM board WHERE id = ?";
+    db.query(sqlRead, [idx], (err, result) => {
+        if (err) console.log(err);
+        else {
+            const hitUpdate = "UPDATE board SET hit = hit + 1 WHERE id = ?";
+            db.query(hitUpdate, [idx], (err2, result2) => {
+                if(err2) console.log(err2);
+                else console.log(result2);
+            })
+        }
+        res.send(result);
+    });
+});
 
+/* Writing (ASP에서 AddPhoto.aspx) */
 app.post('/writing', (req,res) => {
     const name = req.body.name;
     const pw = req.body.pw;
@@ -55,40 +52,26 @@ app.post('/writing', (req,res) => {
     const date = req.body.date;
     const hit = req.body.hit;
 
-    const sqlInsert = "INSERT INTO board (name, pw, title, content, date, hit) VALUES (?,?,?,?,default,0)"
+    const sqlInsert = "INSERT INTO board (name, pw, title, content, date) VALUES (?,?,?,?,default)"
     db.query(sqlInsert, [name, pw, title, content, date, hit], (err, result) => {
-        console.log(result);
+        if(err) console.log(err);
+        res.send(result);
+    })
+});
+
+/* UpdateGet */
+app.get('/update/:id', (req,res) => {
+    const idx = req.params.id;
+    console.log(idx);
+    const sqlUG = "SELECT id, name, pw, title, content, date_format(date, '%Y-%m-%d %H:%m:%s') date, hit FROM board WHERE id = ?";
+    db.query(sqlUG, [idx], (err,result) => {
+        if(err) console.log(err);
+        res.send(result);
     })
 })
 
-// app.delete('/delete', (req, res) => {
-//     const idx = req.body.id;
-//     const deletePassword = req.body.pw;
-//     const sqlDelete = "DELETE FROM board WHERE id = ? and pw = ?;";
-
-//     db.query(sqlDelete, [idx, deletePassword], (err, result) => {
-//         if(err) console.log(err);
-//         if(result.affectedRows == 0)
-//         {
-//             res.send("<script>alert('패스워드가 일치하지 않습니다.');history.back();</script>")
-//         }
-//         else
-//         {
-//             res.redirect('/guestbook');
-//         }
-//     });
-// });
-
-app.delete('/delete/:id', (req, res) => {
-    const idx = req.params.id;
-    const sqlDelete = "DELETE FROM board WHERE id = ?;";
-
-    db.query(sqlDelete, idx, (err, result) => {
-        if(err) console.log(err);
-    });
-});
-
-app.put('/update', (req, res) => {
+/* Update (ASP에서 Edit.aspx) */
+app.put('/update/:id', (req, res) => {
     const name = req.body.name;
     const pw = req.body.pw;
     const title = req.body.title;
@@ -98,24 +81,44 @@ app.put('/update', (req, res) => {
 
     db.query(sqlUpdate, [name, pw, title, content, idx], (err, result) => {
         if(err) console.log(err);
+        res.send(result);
     });
 });
+
+
+/* Delete (ASP에서 Delete.aspx) */
+app.delete('/delete/:id', (req, res) => {
+    const idx = req.params.id;
+    const sqlDelete = "DELETE FROM board WHERE id = ?;";
+
+    db.query(sqlDelete, idx, (err, result) => {
+        if(err) console.log(err);
+        res.send(result);
+    });
+});
+
+
+/* PasswordCheck (ASP에서 CheckPassword.aspx) */
+app.post('/passwordcheck/:id', (req, res) => {
+    const idx = req.body.id;
+    const password = req.body.pw;
+    const sqlUpdate = "SELECT pw FROM board WHERE id = ? AND pw =?;";
+
+    db.query(sqlUpdate, [idx, password], (err, result) => {
+        if(err) res.send({err : err});
+        else {
+            if (result.length > 0) {
+                res.redirect("/update/:id");
+            } else {
+                res.send({message: "비밀번호가 틀렸습니다."});
+            }
+        }
+    });
+});
+
+
+
 
 app.listen('3001', () => {
     console.log("running on port 3001");
 })
-
-// const http = require('http').createServer(app);
-// http.listen(PORT, () => {
-//     console.log(`Server run : http://localhost:${PORT}/`);
-// });
-
-// app.use(express.static(path.join(__dirname, '../graduation_work/build')))
-
-// app.get('/', function(req, res){
-//     res.sendFile(path.join(__dirname, '../graduation_work/build/index.html'))
-// })
-
-// app.get('*', function(req, res){
-//     res.sendFile(path.join(__dirname, '../graduation_work/build/index.html'))
-// })

@@ -108,9 +108,9 @@ app.post('/passwordcheck/:id', (req, res) => {
         if(err) res.send({err : err});
         else {
             if (result.length > 0) {
-                res.redirect("/update/:id");
+                res.send(result);
             } else {
-                res.send({message: "비밀번호가 틀렸습니다."});
+                res.send({message: "*"});
             }
         }
     });

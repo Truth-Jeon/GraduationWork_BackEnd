@@ -116,8 +116,61 @@ app.post('/passwordcheck/:id', (req, res) => {
     });
 });
 
+/* ================================== reply =================================== */
+app.get('/reply/:id', (req, res) => {
+    const idx = req.params.id;
+    const sqlReply = "SELECT reply.id id, reply.name name, reply.content content, date_format(reply.date, '%Y-%m-%d %H:%m:%s') date FROM reply LEFT OUTER JOIN board ON reply.board_id = board.id WHERE board.id = ?";
+    db.query(sqlReply, [idx], (err,result) => {
+        if(err) console.log(err);
+        res.send(result);
+    })
+});
 
+app.post('/reply/:id', (req,res) => {
+    const idx = req.params.id;
+    const name = req.body.name;
+    const pw = req.body.pw;
+    const content = req.body.content;
+    const date = req.body.date;
 
+    const sqlInsert = "INSERT INTO reply (board_id, name, pw, content, date) VALUES (?,?,?,?,default)";
+    db.query(sqlInsert, [idx, name, pw, content, date], (err, result) => {
+        if(err) console.log(err);
+        res.send(result);
+    })
+});
+
+/* PasswordCheck (ASP에서 CheckPassword.aspx) */
+app.post('/replypasswordcheck/:id/:replyid', (req, res) => {
+    const idx = req.body.id;
+    const replyIdx = req.body.replyid;
+    const password = req.body.pw;
+    const sqlUpdate = "SELECT pw FROM reply WHERE board_id=? AND id = ? AND pw =?;";
+
+    db.query(sqlUpdate, [idx, replyIdx, password], (err, result) => {
+        if(err) res.send({err : err});
+        else {
+            if (result.length > 0) {
+                res.send(result);
+            } else {
+                res.send({message: "*"});
+            }
+        }
+    });
+});
+
+/* Delete (ASP에서 Delete.aspx) */
+app.delete('/deletereply/:id/:replyid', (req, res) => {
+    const idx = req.params.id;
+    const replyIdx = req.params.replyid;
+    const replyDelete = "DELETE FROM reply WHERE board_id=? AND id=?";
+
+    db.query(replyDelete, [idx, replyIdx], (err, result) => {
+        if(err) console.log(err);
+        res.send(result);
+        console.log(result);
+    });
+});
 
 app.listen('3001', () => {
     console.log("running on port 3001");

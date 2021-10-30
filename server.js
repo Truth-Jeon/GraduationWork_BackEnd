@@ -119,7 +119,7 @@ app.post('/passwordcheck/:id', (req, res) => {
 /* ================================== reply =================================== */
 app.get('/reply/:id', (req, res) => {
     const idx = req.params.id;
-    const sqlReply = "SELECT reply.id id, reply.name name, reply.content content, date_format(reply.date, '%Y-%m-%d %H:%m:%s') date FROM reply LEFT OUTER JOIN board ON reply.board_id = board.id WHERE board.id = ?";
+    const sqlReply = "SELECT reply.id id, reply.name name, reply.content content, date_format(reply.date, '%Y-%m-%d %H:%m:%s') date FROM reply LEFT OUTER JOIN board ON reply.board_id = board.id WHERE board.id = ? ORDER BY id DESC";
     db.query(sqlReply, [idx], (err,result) => {
         if(err) console.log(err);
         res.send(result);
